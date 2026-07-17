@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Data / model artifacts (large or Colab-generated; not meant for git)
+# Note: best_model.keras is already tracked at the repo root (from an
+# earlier commit) and stays tracked; this only stops *new* .keras/.npz
+# files (e.g. training checkpoints) from being added by accident.
+*.keras
+*.npz
+
+# misc
+.DS_Store
