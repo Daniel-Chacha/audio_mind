@@ -14,7 +14,11 @@ export function SpectrogramCanvas({ data }: { data: number[][] }) {
     const { width, height, rgba } = gridToImageData(data, cellW, cellH);
     cv.width = width;
     cv.height = height;
-    cv.getContext("2d")!.putImageData(new ImageData(rgba, width, height), 0, 0);
+    // jsdom's canvas has no 2d context (see vitest.setup.ts), so this is a
+    // deliberate no-op there rather than a throw.
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    ctx.putImageData(new ImageData(rgba, width, height), 0, 0);
   }, [data]);
   return <canvas ref={ref} className={styles.canvas} />;
 }
