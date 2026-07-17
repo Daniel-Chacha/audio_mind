@@ -1,16 +1,74 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-.venv/
-venv/
-.pytest_cache/
+*$py.class
 
-# Data / model artifacts (large or Colab-generated; not meant for git)
-# Note: best_model.keras is already tracked at the repo root (from an
-# earlier commit) and stays tracked; this only stops *new* .keras/.npz
-# files (e.g. training checkpoints) from being added by accident.
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+.python-version
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+
+# Environment / secrets
+.env
+.env.*
+*.local
+
+# Testing / coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# ML models & training artifacts
+# Note: best_model.keras is already tracked (committed earlier) and stays
+# tracked despite the *.keras rule; this only stops NEW model/checkpoint
+# files from being added by accident.
 *.keras
+*.h5
+*.hdf5
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.pb
+*.tflite
+checkpoints/
+logs/
+runs/
+wandb/
+mlruns/
+
+# Datasets & large audio artifacts
+data/
+datasets/
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.npy
 *.npz
 
-# misc
+# OS / editor
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
