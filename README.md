@@ -32,7 +32,7 @@ python3.12 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 cd ..
-uvicorn serving.app:app --reload --port 8000   # run from repo root
+serving/.venv/bin/python -m uvicorn serving.app:app --reload --port 8000   # from repo root; venv path is explicit, no activation needed
 ```
 
 **Terminal 2 — web frontend** (Node.js 20+; see
