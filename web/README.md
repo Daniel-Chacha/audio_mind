@@ -68,9 +68,8 @@ if you need a non-default API URL.
 
 ## Known limitation
 
-Predictions are only as good as `serving/norm_stats.json`. Until the real
-training-set mean/std are exported from the Colab notebook (see
-[`serving/README.md`](../serving/README.md)), the serving API runs on
-placeholder normalization stats, so predictions returned to this UI are not
-numerically meaningful yet — the request/response pipeline and UI are fully
-wired and correct regardless.
+Predictions are only as good as `serving/norm_stats.json`. It now holds the
+real training-set mean/std exported from the Colab notebook (see
+[`serving/README.md`](../serving/README.md)); the request/response pipeline
+and UI are fully wired and correct, but real end-to-end prediction accuracy
+hasn't yet been visually validated against a live model in a browser.

@@ -21,11 +21,20 @@ pip install -r requirements.txt
 
 The model expects mel-spectrogram features normalized with the *training
 set's* mean/std (the same values used in the Colab notebook at fit time).
-Those values are computed in notebook cell 14 and, historically, only ever
-saved into `gtzan_features.npz` (Colab-only, not checked into git).
+`serving/norm_stats.json` currently holds the real values, computed in the
+training notebook (`index.ipynb`) at cell 14 (`mean = X_train.mean()`,
+`std = X_train.std()`) and printed in cell 27:
 
-Before trusting any real prediction from this service, export the real
-values from the notebook and overwrite `serving/norm_stats.json`:
+```json
+{ "mean": -40.51021194458008, "std": 15.245159149169922 }
+```
+
+These were previously only ever saved into `gtzan_features.npz`
+(Colab-only, not checked into git); they're now checked into this file
+directly.
+
+If the model is ever retrained, re-export the new mean/std from the
+notebook and overwrite `serving/norm_stats.json`:
 
 ```python
 import json
@@ -33,12 +42,6 @@ json.dump({"mean": float(mean), "std": float(std)},
           open("norm_stats.json", "w"), indent=2)
 # then download norm_stats.json from the Colab kernel into serving/
 ```
-
-Until that happens, `serving/norm_stats.json` contains a placeholder
-(`{"mean": 0.0, "std": 1.0, "_placeholder": true}`) so the rest of the
-serving scaffold and its tests can be built and exercised. The
-`"_placeholder": true` marker is intentional — check for it before serving
-real predictions, and remove it once the real train mean/std are in place.
 
 ## Running the API
 

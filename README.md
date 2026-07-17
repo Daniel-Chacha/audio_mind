@@ -49,17 +49,19 @@ the serving API at `http://localhost:8000` by default
 (`NEXT_PUBLIC_API_BASE` in `web/lib/api.ts`); both defaults line up so no
 extra configuration is needed for local development.
 
-## Important: `norm_stats.json` is a placeholder
+## `norm_stats.json` — real training stats
 
-`serving/norm_stats.json` currently holds a **placeholder** normalization
-(`{"mean": 0.0, "std": 1.0, "_placeholder": true}`), not the real
-training-set mean/std the model was fit with. This means the full pipeline
+`serving/norm_stats.json` holds the real training-set mean/std the model was
+fit with (`mean = -40.51021194458008`, `std = 15.245159149169922`), taken
+from `X_train.mean()` / `X_train.std()` in the training notebook
+(`index.ipynb`, cell 27; originally computed in cell 14). The full pipeline
 (upload → decode → segment → mel-spectrogram → normalize → predict →
-render) works end-to-end, but **predicted genres/confidences are not
-numerically meaningful yet**.
+render) runs end-to-end with these values, though real-world end-to-end
+prediction accuracy hasn't yet been visually validated against a live model
+in a browser.
 
-Before trusting real predictions, export the real mean/std from the Colab
-notebook and overwrite `serving/norm_stats.json` — see
+If the model is ever retrained, re-export `X_train.mean()` / `X_train.std()`
+from the notebook and overwrite `serving/norm_stats.json` — see
 [`serving/README.md`](serving/README.md#norm_statsjson) for the exact steps.
 
 ## Tests
