@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 from serving.preprocess import waveform_to_segments
+from serving.constants import GENRES, SR, SAMPLES_PER_SEGMENT
 
 def load_norm_stats(path) -> tuple[float, float]:
     d = json.loads(Path(path).read_text())
@@ -10,6 +11,13 @@ def load_norm_stats(path) -> tuple[float, float]:
 
 def normalize(X: np.ndarray, mean: float, std: float) -> np.ndarray:
     return (X - mean) / std
+
+def representative_spectrogram(segments: np.ndarray) -> list[list[int]]:
+    idx = int(segments.mean(axis=(1, 2, 3)).argmax())   # loudest segment
+    grid = segments[idx, :, :, 0]                        # (128,130) dB
+    lo, hi = float(grid.min()), float(grid.max())
+    scaled = (grid - lo) / (hi - lo + 1e-9)              # 0..1
+    return (scaled * 255).astype(np.uint8).astype(int).tolist()
 
 class Classifier:
     def __init__(self, model_path, mean: float, std: float):
@@ -25,3 +33,25 @@ class Classifier:
         X = normalize(self.segments(y), self.mean, self.std)
         probs = self.model.predict(X, verbose=0).mean(axis=0)   # avg over segments
         return probs.astype(np.float64)
+
+    def classify(self, y: np.ndarray) -> dict:
+        segs = self.segments(y)
+        X = normalize(segs, self.mean, self.std)
+        probs = self.model.predict(X, verbose=0).mean(axis=0).astype(float)
+        top = int(probs.argmax())
+        return {
+            "genre": GENRES[top],
+            "confidence": float(probs[top]),
+            "probabilities": [
+                {"genre": g, "prob": float(p)} for g, p in zip(GENRES, probs)
+            ],
+            "spectrogram": {
+                "bands": 128, "frames": 130,
+                "data": representative_spectrogram(segs),
+            },
+            "meta": {
+                "segments": int(segs.shape[0]),
+                "duration_s": round(len(y) / SR, 2),
+                "sample_rate": SR,
+            },
+        }
