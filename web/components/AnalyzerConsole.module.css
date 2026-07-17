@@ -1,0 +1,248 @@
+/* ---------- app shell ---------- */
+.app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(14px, 2.4vw, 26px) var(--gut) 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- top rail ---------- */
+.rail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.glyph {
+  font-size: 15px;
+  line-height: 1;
+  background: var(--signal);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 10px rgba(232, 54, 143, 0.5));
+  transform: translateY(1px);
+}
+
+.tagline {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--faint);
+  text-transform: uppercase;
+}
+
+.railMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 11px;
+  white-space: nowrap;
+}
+
+.status {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ready);
+  box-shadow: 0 0 0 0 rgba(56, 232, 176, 0.6);
+  animation: pulse 2.4s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(56, 232, 176, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(56, 232, 176, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(56, 232, 176, 0);
+  }
+}
+
+/* ---------- console ---------- */
+.console {
+  flex: 1;
+  margin-top: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 40%), var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+.stagePanel {
+  flex: 1;
+  display: flex;
+}
+
+/* ---------- recording overlay (over the idle Dropzone) ---------- */
+.inputWrap {
+  flex: 1;
+  display: flex;
+  position: relative;
+}
+
+.recOverlay {
+  position: absolute;
+  inset: 16px;
+  border-radius: 12px;
+  z-index: 5;
+  background: rgba(11, 13, 20, 0.86);
+  backdrop-filter: blur(3px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.recBadge {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--rec);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.recBadge .dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--rec);
+  animation: blink 1s steps(1) infinite;
+  box-shadow: 0 0 12px var(--rec);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.recCount {
+  font-family: var(--mono);
+  font-size: clamp(56px, 12vw, 96px);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- error panel ---------- */
+.errorPanel {
+  flex: 1;
+  margin: 16px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: clamp(24px, 5vw, 56px);
+  text-align: center;
+}
+
+.errorMsg {
+  margin: 0 auto;
+  max-width: 52ch;
+  color: var(--dim);
+  font-size: 14.5px;
+}
+
+/* ---------- footer ticker ---------- */
+.ticker {
+  margin-top: 16px;
+  padding: 12px 0 18px;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.tickerTrack {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marq 26s linear infinite;
+}
+
+.tickerTrack span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.tickerTrack b {
+  color: var(--dim);
+  font-weight: 600;
+}
+
+.tickerTrack em {
+  color: var(--line-2);
+  font-style: normal;
+  padding: 0 16px;
+}
+
+@keyframes marq {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@media (max-width: 720px) {
+  .tagline {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tickerTrack {
+    animation: none;
+    padding-left: 0;
+  }
+}

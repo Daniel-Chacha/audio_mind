@@ -1,9 +1,5 @@
+import { AnalyzerConsole } from "@/components/AnalyzerConsole";
+
 export default function Home() {
-  return (
-    <main>
-      <header>
-        <span className="wordmark">AUDIOMIND</span>
-      </header>
-    </main>
-  );
+  return <AnalyzerConsole />;
 }
