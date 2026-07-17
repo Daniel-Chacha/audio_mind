@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AudioMind — web
 
-## Getting Started
+Next.js frontend for AudioMind, a music-genre classifier. Drop in an audio
+clip (or record 3 seconds from the mic) and the app sends it to the AudioMind
+serving API, then renders the predicted genre, a confidence bar per genre,
+and the mel-spectrogram the model actually saw.
 
-First, run the development server:
+This app is the UI half of a two-service project — see the [repo root
+README](../README.md) for how it fits together with `serving/`.
+
+## Prerequisites
+
+- Node.js 20+ (Next.js 16 / React 19)
+- The [serving API](../serving/README.md) running locally for live
+  predictions (not required to run `npm run dev` or `npm run build`
+  themselves — only for the app to get real responses instead of network
+  errors)
+
+## Setup
+
+```bash
+cd web
+npm install
+```
+
+## Running
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). By default the app
+talks to the serving API at `http://localhost:8000` (see `NEXT_PUBLIC_API_BASE`
+below), so start that service first — see
+[`serving/README.md`](../serving/README.md) — or you'll see a "Couldn't reach
+the model" error when you try to classify a clip.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing & building
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run test    # vitest — component/unit tests, no serving API needed
+npm run build   # production build (next build)
+npm run start   # serve the production build
+npm run lint    # eslint
+```
 
-## Learn More
+## Configuration
 
-To learn more about Next.js, take a look at the following resources:
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_BASE` | `http://localhost:8000` | Base URL of the AudioMind serving API. Set this in `web/.env.local` (gitignored) to point at a different host/port, e.g. when the serving API runs elsewhere. |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The default lives in `lib/api.ts`, so the app works out of the box against a
+locally running serving API with no `.env.local` file required; only set one
+if you need a non-default API URL.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## App structure
 
-## Deploy on Vercel
+- `components/AnalyzerConsole.tsx` — top-level view; owns the
+  upload/record/analyze/result state machine (`lib/machine.ts`)
+- `components/Dropzone.tsx`, `hooks/useRecorder.ts` — file upload and 3s mic
+  recording
+- `components/AnalyzingView.tsx`, `components/PredictionView.tsx`,
+  `components/ConfidenceBars.tsx`, `components/SpectrogramCanvas.tsx` —
+  in-flight animation, result rendering, per-genre confidence bars, and the
+  "what the model sees" spectrogram canvas
+- `lib/api.ts` — the fetch call to `POST /classify` on the serving API
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Known limitation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Predictions are only as good as `serving/norm_stats.json`. Until the real
+training-set mean/std are exported from the Colab notebook (see
+[`serving/README.md`](../serving/README.md)), the serving API runs on
+placeholder normalization stats, so predictions returned to this UI are not
+numerically meaningful yet — the request/response pipeline and UI are fully
+wired and correct regardless.
