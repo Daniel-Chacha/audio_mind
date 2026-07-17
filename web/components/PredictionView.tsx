@@ -1,3 +1,4 @@
+"use client";
 import { SpectrogramCanvas } from "@/components/SpectrogramCanvas";
 import { ConfidenceBars } from "@/components/ConfidenceBars";
 import { DISPLAY } from "@/lib/genres";
