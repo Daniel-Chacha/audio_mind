@@ -1,0 +1,36 @@
+.chain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 0 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.stage {
+  color: var(--faint);
+  transition: color 0.4s ease;
+  position: relative;
+}
+
+.stage.on {
+  color: var(--text);
+}
+
+.stage.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  background: var(--signal);
+  border-radius: 2px;
+}
+
+.arr {
+  color: var(--line-2);
+}

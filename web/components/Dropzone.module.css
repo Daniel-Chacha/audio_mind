@@ -1,0 +1,52 @@
+.dropzone {
+  flex: 1;
+  margin: 16px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: clamp(24px, 5vw, 56px);
+  text-align: center;
+  position: relative;
+  transition: border-color 0.25s, background 0.25s;
+}
+
+.dropzone.drag {
+  border-color: var(--magenta);
+  background: rgba(232, 54, 143, 0.06);
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 3.4vw, 34px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  line-height: 1.1;
+}
+
+.sub {
+  margin: 0 auto;
+  max-width: 52ch;
+  color: var(--dim);
+  font-size: 14.5px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.foot {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--faint);
+  text-transform: uppercase;
+}
