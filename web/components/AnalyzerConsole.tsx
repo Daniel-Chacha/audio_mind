@@ -80,7 +80,7 @@ export function AnalyzerConsole() {
           )}
 
           {state.status === "error" && (
-            <div className={styles.errorPanel}>
+            <div className={styles.errorPanel} role="alert" aria-live="assertive">
               <p className={styles.errorMsg}>{state.error}</p>
               <button className="btn btn-ghost" onClick={() => dispatch({ type: "RESET" })}>
                 Try again

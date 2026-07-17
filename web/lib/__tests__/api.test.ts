@@ -1,4 +1,4 @@
-import { classify, ApiError } from "../api";
+import { classify } from "../api";
 import { afterEach, expect, test, vi } from "vitest";
 afterEach(() => vi.restoreAllMocks());
 
