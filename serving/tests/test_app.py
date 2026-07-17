@@ -35,5 +35,12 @@ def test_classify_unreadable_is_422():
     assert r.status_code == 422
     assert r.json()["error"] == "unreadable_audio"
 
-def test_classify_no_file_is_422():
-    assert client.post("/classify").status_code == 422
+def test_classify_no_file_is_400():
+    # Absent `file` field entirely.
+    r = client.post("/classify")
+    assert r.status_code == 400
+    assert r.json()["error"] == "no_file"
+    # Explicitly-empty file body.
+    r = client.post("/classify", files={"file": ("empty.wav", b"", "audio/wav")})
+    assert r.status_code == 400
+    assert r.json()["error"] == "no_file"

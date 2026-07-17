@@ -1,5 +1,4 @@
 import io
-import numpy as np
 import librosa
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
@@ -28,7 +27,9 @@ def health():
     return {"status": "ok", "model_loaded": clf.ready, "genres": GENRES}
 
 @app.post("/classify")
-async def classify(file: UploadFile = File(...)):
+async def classify(file: UploadFile | None = File(None)):
+    if file is None:
+        return _err(400, "no_file", "Attach an audio file.")
     data = await file.read()
     if not data:
         return _err(400, "no_file", "Attach an audio file.")
