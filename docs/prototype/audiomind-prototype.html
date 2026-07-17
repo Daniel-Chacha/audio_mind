@@ -1,0 +1,632 @@
+<title>AudioMind — Neural Genre Analysis</title>
+<style>
+  :root{
+    /* neutrals — biased slightly toward the violet accent, not pure grey */
+    --bg:        #0B0D14;
+    --bg-2:      #0E1119;
+    --panel:     #141824;
+    --panel-2:   #1A1F2E;
+    --line:      #242A3A;
+    --line-2:    #333B50;
+    --text:      #E9EBF3;
+    --dim:       #99A0B6;
+    --faint:     #5C6479;
+    /* signal accent — the punchy version of the magma spectrogram colormap */
+    --violet:    #7B4DFF;
+    --magenta:   #E8368F;
+    --amber:     #FF8A3C;
+    --yellow:    #FCD34D;
+    /* semantic (kept separate from the accent) */
+    --ready:     #38E8B0;
+    --rec:       #FF3B57;
+
+    --signal: linear-gradient(90deg, var(--violet) 0%, var(--magenta) 42%, var(--amber) 78%, var(--yellow) 100%);
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    --r: 14px;
+    --gut: clamp(16px, 3.5vw, 40px);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    background:
+      radial-gradient(120% 80% at 50% -10%, rgba(123,77,255,.10), transparent 60%),
+      radial-gradient(90% 60% at 90% 110%, rgba(232,54,143,.08), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    min-height:100vh;
+  }
+  ::selection{ background:rgba(232,54,143,.35); }
+
+  .app{
+    max-width:1180px;
+    margin:0 auto;
+    padding: clamp(14px,2.4vw,26px) var(--gut) 0;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ---------- top rail ---------- */
+  .rail{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+    padding-bottom:16px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{ display:flex; align-items:baseline; gap:12px; min-width:0; }
+  .glyph{
+    font-size:15px; line-height:1;
+    background:var(--signal); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 10px rgba(232,54,143,.5));
+    transform:translateY(1px);
+  }
+  .wordmark{
+    font-family:var(--mono); font-weight:700;
+    letter-spacing:.34em; font-size:15px; text-indent:.34em;
+  }
+  .tagline{
+    font-family:var(--mono); font-size:11px; letter-spacing:.18em;
+    color:var(--faint); text-transform:uppercase;
+  }
+  .rail-meta{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .chip{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+    color:var(--dim); text-transform:uppercase;
+    border:1px solid var(--line); border-radius:999px;
+    padding:5px 11px; white-space:nowrap;
+  }
+  .status{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+    color:var(--dim); text-transform:uppercase;
+    display:inline-flex; align-items:center; gap:7px;
+  }
+  .led{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--ready); box-shadow:0 0 0 0 rgba(56,232,176,.6);
+    animation:pulse 2.4s ease-out infinite;
+  }
+  @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(56,232,176,.5)} 70%{box-shadow:0 0 0 7px rgba(56,232,176,0)} 100%{box-shadow:0 0 0 0 rgba(56,232,176,0)} }
+
+  /* ---------- signal chain ---------- */
+  .chain{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:14px 0 4px;
+    font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  }
+  .stage{ color:var(--faint); transition:color .4s ease; position:relative; }
+  .stage.on{ color:var(--text); }
+  .stage.on::after{
+    content:""; position:absolute; left:0; right:0; bottom:-6px; height:2px;
+    background:var(--signal); border-radius:2px;
+  }
+  .arr{ color:var(--line-2); }
+
+  /* ---------- console ---------- */
+  .console{
+    flex:1;
+    margin-top:14px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.015), transparent 40%),
+      var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    box-shadow: 0 30px 80px -40px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.03);
+    position:relative;
+    overflow:hidden;
+    display:flex;
+  }
+  .stage-panel{ flex:1; display:flex; }
+  .stage-panel[hidden]{ display:none; }
+  .fade-in{ animation:fade .5s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes fade{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
+
+  /* ---------- input / dropzone ---------- */
+  .dropzone{
+    flex:1; margin:16px; border:1.5px dashed var(--line-2); border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:22px; padding:clamp(24px,5vw,56px);
+    text-align:center; position:relative; transition:border-color .25s, background .25s;
+  }
+  .dropzone.drag{ border-color:var(--magenta); background:rgba(232,54,143,.06); }
+  .dz-visual{ width:min(420px,80%); height:96px; }
+  .dz-visual canvas{ width:100%; height:100%; display:block; }
+  .dz-copy h1{
+    margin:0 0 8px; font-size:clamp(24px,3.4vw,34px); font-weight:650;
+    letter-spacing:-.02em; text-wrap:balance; line-height:1.1;
+  }
+  .dz-copy p{ margin:0 auto; max-width:52ch; color:var(--dim); font-size:14.5px; }
+  .dz-actions{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:center; }
+  .or{ font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.1em; text-transform:uppercase; }
+  .dz-foot{
+    font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--faint);
+    text-transform:uppercase;
+  }
+
+  .btn{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:.06em;
+    border-radius:10px; padding:12px 20px; cursor:pointer; border:1px solid transparent;
+    display:inline-flex; align-items:center; gap:9px; transition:transform .12s ease, box-shadow .2s, background .2s, border-color .2s;
+    color:var(--text); background:transparent;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{
+    background:var(--signal); color:#12060f; font-weight:700;
+    box-shadow:0 10px 30px -12px rgba(232,54,143,.7);
+  }
+  .btn-primary:hover{ box-shadow:0 14px 34px -10px rgba(232,54,143,.9); }
+  .btn-ghost{ border-color:var(--line-2); color:var(--text); }
+  .btn-ghost:hover{ border-color:var(--magenta); background:rgba(232,54,143,.06); }
+  .btn .dot{ width:9px;height:9px;border-radius:50%;background:var(--rec); box-shadow:0 0 8px var(--rec); }
+  .btn:focus-visible, .row:focus-visible{ outline:2px solid var(--yellow); outline-offset:3px; }
+
+  /* recording overlay */
+  .rec-overlay{
+    position:absolute; inset:16px; border-radius:12px; z-index:5;
+    background:rgba(11,13,20,.86); backdrop-filter:blur(3px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  }
+  .rec-overlay[hidden]{ display:none; }
+  .rec-badge{ font-family:var(--mono); font-size:12px; letter-spacing:.2em; color:var(--rec); text-transform:uppercase; display:flex; align-items:center; gap:9px; }
+  .rec-badge .dot{ width:11px;height:11px;border-radius:50%;background:var(--rec); animation:blink 1s steps(1) infinite; box-shadow:0 0 12px var(--rec); }
+  @keyframes blink{ 50%{opacity:.25} }
+  .rec-count{ font-family:var(--mono); font-size:clamp(56px,12vw,96px); font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+  .rec-meter{ width:min(360px,70%); height:60px; }
+  .rec-meter canvas{ width:100%; height:100%; display:block; }
+
+  /* ---------- analyzing ---------- */
+  .analyzer{ flex:1; display:flex; flex-direction:column; padding:clamp(18px,3vw,30px); gap:18px; }
+  .an-canvas-wrap{
+    flex:1; position:relative; border-radius:10px; overflow:hidden;
+    border:1px solid var(--line); background:#05060a; min-height:220px;
+  }
+  #spectro-live{ width:100%; height:100%; display:block; }
+  .an-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); }
+  .an-head b{ color:var(--text); font-weight:600; }
+  .an-foot{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .an-nums{ font-family:var(--mono); font-size:12px; color:var(--dim); font-variant-numeric:tabular-nums; letter-spacing:.05em; }
+  .meter{ flex:1; min-width:160px; height:6px; border-radius:6px; background:var(--line); overflow:hidden; }
+  .meter i{ display:block; height:100%; width:0%; background:var(--signal); transition:width .1s linear; }
+
+  /* ---------- results ---------- */
+  .result{
+    flex:1; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+    gap:clamp(16px,2.4vw,28px); padding:clamp(18px,3vw,30px);
+  }
+  .see{ display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .kicker{ font-family:var(--mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--faint); }
+  .see-canvas-wrap{ position:relative; border-radius:10px; overflow:hidden; border:1px solid var(--line); background:#05060a; aspect-ratio:130/96; }
+  #spectro-final{ width:100%; height:100%; display:block; }
+  .playhead{ position:absolute; top:0; bottom:0; width:2px; background:rgba(252,211,77,.9); left:0; opacity:0; box-shadow:0 0 10px var(--yellow); }
+  .see-controls{ display:flex; align-items:center; gap:12px; }
+  .play{
+    font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    border:1px solid var(--line-2); background:transparent; color:var(--text);
+    border-radius:8px; padding:8px 13px; cursor:pointer; display:inline-flex; gap:8px; align-items:center;
+  }
+  .play:hover{ border-color:var(--yellow); }
+  .axis{ font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:.08em; }
+
+  .verdict{ display:flex; flex-direction:column; min-width:0; }
+  .eyebrow{ font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--faint); }
+  .genre{
+    font-family:var(--mono); font-weight:700; letter-spacing:-.01em;
+    font-size:clamp(40px,7vw,68px); line-height:1; margin:6px 0 4px;
+    background:var(--signal); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 4px 24px rgba(232,54,143,.35));
+    text-transform:uppercase;
+  }
+  .conf-top{ font-family:var(--mono); font-size:14px; color:var(--dim); font-variant-numeric:tabular-nums; }
+  .conf-top b{ color:var(--text); font-size:18px; font-weight:700; }
+  .bars{ margin:20px 0 auto; display:flex; flex-direction:column; gap:3px; }
+  .bars-head{ font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin-bottom:8px; }
+  .row{
+    display:grid; grid-template-columns:84px minmax(0,1fr) 52px; align-items:center; gap:12px;
+    padding:5px 8px; border-radius:7px; transition:background .15s; cursor:default;
+  }
+  .row:hover{ background:var(--panel-2); }
+  .row .name{ font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--dim); text-transform:uppercase; }
+  .row .track{ height:8px; border-radius:6px; background:var(--line); overflow:hidden; }
+  .row .track i{ display:block; height:100%; width:0; border-radius:6px; background:var(--line-2);
+    transition:width .9s cubic-bezier(.2,.8,.2,1); }
+  .row .val{ font-family:var(--mono); font-size:12px; color:var(--dim); text-align:right; font-variant-numeric:tabular-nums; }
+  .row.win .name{ color:var(--text); font-weight:700; }
+  .row.win .track i{ background:var(--signal); box-shadow:0 0 16px -2px rgba(232,54,143,.6); }
+  .row.win .val{ color:var(--text); font-weight:700; }
+
+  .reset-wrap{ margin-top:22px; }
+
+  /* ---------- footer ticker ---------- */
+  .ticker{
+    margin-top:16px; padding:12px 0 18px; border-top:1px solid var(--line);
+    overflow:hidden; white-space:nowrap;
+  }
+  .ticker .track{ display:inline-block; padding-left:100%; animation:marq 26s linear infinite; }
+  .ticker span{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); }
+  .ticker b{ color:var(--dim); font-weight:600; }
+  .ticker em{ color:var(--line-2); font-style:normal; padding:0 16px; }
+  @keyframes marq{ from{transform:translateX(0)} to{transform:translateX(-100%)} }
+
+  @media (max-width:720px){
+    .result{ grid-template-columns:1fr; }
+    .tagline{ display:none; }
+    .chain{ font-size:10px; gap:7px; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+    .ticker .track{ animation:none; padding-left:0; }
+  }
+</style>
+
+<div class="app">
+  <header class="rail">
+    <div class="brand">
+      <span class="glyph" aria-hidden="true">◆</span>
+      <span class="wordmark">AUDIOMIND</span>
+      <span class="tagline">neural genre analysis</span>
+    </div>
+    <div class="rail-meta">
+      <span class="chip">GTZAN · 10 genres</span>
+      <span class="chip">CNN · mel-spectrogram</span>
+      <span class="status"><i class="led" aria-hidden="true"></i> model ready</span>
+    </div>
+  </header>
+
+  <nav class="chain" aria-label="Signal chain">
+    <span class="stage" data-stage="input">waveform</span>
+    <span class="arr" aria-hidden="true">→</span>
+    <span class="stage" data-stage="analyze">mel spectrogram</span>
+    <span class="arr" aria-hidden="true">→</span>
+    <span class="stage" data-stage="analyze">cnn</span>
+    <span class="arr" aria-hidden="true">→</span>
+    <span class="stage" data-stage="result">genre</span>
+  </nav>
+
+  <main class="console">
+    <!-- ===== INPUT ===== -->
+    <section class="stage-panel" id="panel-input">
+      <div class="dropzone" id="dropzone">
+        <div class="dz-visual"><canvas id="idle-viz" aria-hidden="true"></canvas></div>
+        <div class="dz-copy">
+          <h1>Drop a track to classify</h1>
+          <p>Feed AudioMind an audio clip and it returns the genre from a 3-second window — the same slice the network trained on.</p>
+        </div>
+        <div class="dz-actions">
+          <button class="btn btn-primary" id="btn-upload">Upload audio</button>
+          <span class="or">or</span>
+          <button class="btn btn-ghost" id="btn-record"><i class="dot" aria-hidden="true"></i>Record 3s</button>
+          <input type="file" id="file-input" accept="audio/*" hidden />
+        </div>
+        <div class="dz-foot">wav · mp3 · flac — resampled to 22.05 kHz mono</div>
+
+        <div class="rec-overlay" id="rec-overlay" hidden>
+          <div class="rec-badge"><i class="dot" aria-hidden="true"></i> recording</div>
+          <div class="rec-count" id="rec-count">3</div>
+          <div class="rec-meter"><canvas id="rec-viz" aria-hidden="true"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ANALYZING ===== -->
+    <section class="stage-panel" id="panel-analyze" hidden>
+      <div class="analyzer">
+        <div class="an-head">
+          <span>extracting <b>mel spectrogram</b></span>
+          <span id="an-src">— input.wav</span>
+        </div>
+        <div class="an-canvas-wrap"><canvas id="spectro-live"></canvas></div>
+        <div class="an-foot">
+          <span class="an-nums" id="an-nums">frame 000 / 130 · 128 bands · 22.05 kHz</span>
+          <span class="meter"><i id="an-bar"></i></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== RESULTS ===== -->
+    <section class="stage-panel" id="panel-result" hidden>
+      <div class="result">
+        <div class="see">
+          <span class="kicker">what the model sees</span>
+          <div class="see-canvas-wrap">
+            <canvas id="spectro-final"></canvas>
+            <div class="playhead" id="playhead"></div>
+          </div>
+          <div class="see-controls">
+            <button class="play" id="btn-play"><span id="play-ico">▶</span> play clip</button>
+            <span class="axis">128 mel bands × 130 frames · log-power dB</span>
+          </div>
+        </div>
+
+        <div class="verdict">
+          <span class="eyebrow">prediction</span>
+          <div class="genre" id="genre-name">—</div>
+          <div class="conf-top"><b id="genre-pct">0.0%</b> confidence</div>
+          <div class="bars">
+            <div class="bars-head">confidence · all 10 genres</div>
+            <div id="bars"></div>
+          </div>
+          <div class="reset-wrap">
+            <button class="btn btn-ghost" id="btn-reset">↺ Analyze another</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="ticker" aria-hidden="true">
+    <div class="track">
+      <span><b>GTZAN dataset</b> 1,000 clips · 10 genres × 100 <em>/</em> <b>segment</b> 3 s window <em>/</em> <b>sample rate</b> 22,050 Hz mono <em>/</em> <b>n_fft</b> 2048 <em>/</em> <b>hop</b> 512 <em>/</em> <b>n_mels</b> 128 <em>/</em> <b>input</b> 128 × 130 × 1 <em>/</em> <b>arch</b> 3× conv-block CNN → GAP → dense <em>/</em> <b>blues classical country disco hiphop jazz metal pop reggae rock</b> <em>/</em></span>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var GENRES = ["blues","classical","country","disco","hiphop","jazz","metal","pop","reggae","rock"];
+  var DISPLAY = {blues:"BLUES",classical:"CLASSICAL",country:"COUNTRY",disco:"DISCO",hiphop:"HIP-HOP",jazz:"JAZZ",metal:"METAL",pop:"POP",reggae:"REGGAE",rock:"ROCK"};
+  // known GTZAN confusions → realistic runner-ups
+  var CONF = {
+    blues:["country","jazz","rock"], classical:["jazz","blues","country"],
+    country:["blues","rock","pop"], disco:["pop","hiphop","rock"],
+    hiphop:["disco","reggae","pop"], jazz:["classical","blues","country"],
+    metal:["rock","disco","country"], pop:["disco","country","hiphop"],
+    reggae:["hiphop","blues","disco"], rock:["metal","country","blues"]
+  };
+  // per-genre spectral signature so the picture matches the verdict
+  var PROFILE = {
+    blues:    {lowE:.55,highE:.42,sub:.28,harm:.34,hmid:.42,onsets:5,ob:.55},
+    classical:{lowE:.44,highE:.40,sub:.12,harm:.52,hmid:.46,onsets:3,ob:.40},
+    country:  {lowE:.54,highE:.46,sub:.26,harm:.36,hmid:.44,onsets:5,ob:.58},
+    disco:    {lowE:.62,highE:.50,sub:.38,harm:.24,hmid:.34,onsets:8,ob:.82},
+    hiphop:   {lowE:.82,highE:.26,sub:.55,harm:.16,hmid:.22,onsets:9,ob:.92},
+    jazz:     {lowE:.50,highE:.45,sub:.20,harm:.46,hmid:.40,onsets:5,ob:.50},
+    metal:    {lowE:.70,highE:.70,sub:.32,harm:.12,hmid:.30,onsets:12,ob:.80},
+    pop:      {lowE:.60,highE:.52,sub:.34,harm:.26,hmid:.38,onsets:8,ob:.80},
+    reggae:   {lowE:.72,highE:.34,sub:.46,harm:.20,hmid:.30,onsets:6,ob:.80},
+    rock:     {lowE:.62,highE:.60,sub:.30,harm:.20,hmid:.34,onsets:8,ob:.76}
+  };
+
+  var W = 130, H = 128;
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  // magma colormap anchors (authentic spectrogram look)
+  var MAG = [[0,0,4],[28,16,68],[79,18,123],[129,37,129],[181,54,122],[229,80,100],[251,135,97],[254,194,135],[252,253,191]];
+  function magma(t){
+    if(t<0)t=0; if(t>1)t=1;
+    var s=t*(MAG.length-1), i=Math.floor(s), f=s-i;
+    var a=MAG[i], b=MAG[Math.min(i+1,MAG.length-1)];
+    return [lerp(a[0],b[0],f)|0, lerp(a[1],b[1],f)|0, lerp(a[2],b[2],f)|0];
+  }
+
+  function genGrid(genre){
+    var p = PROFILE[genre], seed = Math.random()*6.28;
+    var g = new Float32Array(W*H);
+    var beats = [], step = Math.max(6, Math.round(26 - p.onsets*1.7));
+    for(var c = (Math.random()*step)|0; c<W; c += step + ((Math.random()*4-2)|0)) beats.push(c);
+    for(c=0;c<W;c++){
+      var onset=0;
+      for(var k=0;k<beats.length;k++){ var d=c-beats[k]; onset=Math.max(onset, Math.exp(-(d*d)/3.2)); }
+      var swing = 0.62 + 0.38*Math.sin(c*0.11 + seed);
+      for(var r=0;r<H;r++){
+        var band = r/(H-1);            // 0 = top (high freq), 1 = bottom (low freq)
+        var v = lerp(p.highE, p.lowE, band);
+        v += p.sub * Math.pow(band, 3.0);
+        v += p.harm * Math.exp(-Math.pow((band-p.hmid)/0.05,2)) * (0.6+0.4*Math.sin(c*0.28+seed));
+        v += p.harm*0.55 * Math.exp(-Math.pow((band-p.hmid*0.62)/0.045,2));
+        v += onset * p.ob * (0.42+0.58*(1-band*0.5));
+        v += (Math.random()-0.5)*0.11;
+        v *= (swing*0.5+0.6);
+        g[c*H+r] = v;
+      }
+    }
+    var mn=Infinity,mx=-Infinity;
+    for(var i=0;i<g.length;i++){ if(g[i]<mn)mn=g[i]; if(g[i]>mx)mx=g[i]; }
+    var inv=1/(mx-mn+1e-6);
+    for(i=0;i<g.length;i++){ var t=(g[i]-mn)*inv; g[i]=Math.pow(t,0.82); }
+    return g;
+  }
+
+  function fitCanvas(cv){
+    var dpr = Math.min(window.devicePixelRatio||1, 2);
+    var rect = cv.getBoundingClientRect();
+    cv.width = Math.max(1, Math.round(rect.width*dpr));
+    cv.height = Math.max(1, Math.round(rect.height*dpr));
+    return {ctx:cv.getContext("2d"), w:cv.width, h:cv.height};
+  }
+  // draw spectrogram grid up to column `upto` (0..W)
+  function drawSpectro(cv, grid, upto){
+    var f = fitCanvas(cv), ctx=f.ctx, cw=f.w, ch=f.h;
+    var colW = cw/W, rowH = ch/H;
+    ctx.fillStyle="#05060a"; ctx.fillRect(0,0,cw,ch);
+    var maxC = upto==null ? W : upto;
+    for(var c=0;c<maxC;c++){
+      for(var r=0;r<H;r++){
+        var rgb = magma(grid[c*H+r]);
+        ctx.fillStyle="rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
+        ctx.fillRect(c*colW, r*rowH, colW+1, rowH+1);
+      }
+    }
+    if(upto!=null && upto<W){
+      ctx.fillStyle="rgba(252,211,77,.9)";
+      ctx.fillRect(upto*colW, 0, 2, ch);
+      ctx.fillStyle="rgba(252,211,77,.12)";
+      ctx.fillRect(upto*colW-14, 0, 14, ch);
+    }
+  }
+
+  /* ---------- idle visualiser (input) ---------- */
+  var idleRAF=null;
+  function idleViz(){
+    var cv=document.getElementById("idle-viz"); if(!cv) return;
+    var N=48;
+    function frame(ts){
+      var f=fitCanvas(cv), ctx=f.ctx, cw=f.w, ch=f.h;
+      ctx.clearRect(0,0,cw,ch);
+      var bw=cw/N, t=ts/1000;
+      for(var i=0;i<N;i++){
+        var e=(Math.sin(i*0.5+t*2)*0.5+0.5)*(Math.sin(i*0.13-t*1.3)*0.5+0.5);
+        var bh=Math.max(2, e*ch*0.9);
+        var col=magma(0.25+e*0.6);
+        ctx.fillStyle="rgba("+col[0]+","+col[1]+","+col[2]+",.85)";
+        ctx.fillRect(i*bw+bw*0.2, (ch-bh)/2, bw*0.6, bh);
+      }
+      idleRAF=requestAnimationFrame(frame);
+    }
+    if(reduce){ var f=fitCanvas(cv),ctx=f.ctx,cw=f.w,ch=f.h; ctx.clearRect(0,0,cw,ch);
+      var bw=cw/N; for(var i=0;i<N;i++){var e=(Math.sin(i*0.5)*0.5+0.5);var bh=Math.max(2,e*ch*0.7);var col=magma(0.3+e*0.5);ctx.fillStyle="rgb("+col[0]+","+col[1]+","+col[2]+")";ctx.fillRect(i*bw+bw*0.2,(ch-bh)/2,bw*0.6,bh);} return; }
+    idleRAF=requestAnimationFrame(frame);
+  }
+  function stopIdle(){ if(idleRAF){ cancelAnimationFrame(idleRAF); idleRAF=null; } }
+
+  /* ---------- recording meter ---------- */
+  var recRAF=null;
+  function recViz(){
+    var cv=document.getElementById("rec-viz"); if(!cv) return;
+    var N=40;
+    function frame(ts){
+      var f=fitCanvas(cv),ctx=f.ctx,cw=f.w,ch=f.h; ctx.clearRect(0,0,cw,ch);
+      var bw=cw/N,t=ts/1000;
+      for(var i=0;i<N;i++){
+        var e=Math.abs(Math.sin(i*0.7+t*6))*Math.abs(Math.sin(t*3+i));
+        var bh=Math.max(2,e*ch);
+        ctx.fillStyle="rgba(255,59,87,"+(0.4+e*0.6)+")";
+        ctx.fillRect(i*bw+bw*0.25,(ch-bh)/2,bw*0.5,bh);
+      }
+      recRAF=requestAnimationFrame(frame);
+    }
+    recRAF=requestAnimationFrame(frame);
+  }
+  function stopRec(){ if(recRAF){ cancelAnimationFrame(recRAF); recRAF=null; } }
+
+  /* ---------- state machine ---------- */
+  var panels={ input:document.getElementById("panel-input"), analyze:document.getElementById("panel-analyze"), result:document.getElementById("panel-result") };
+  var stages=document.querySelectorAll(".stage");
+  function setChain(name){
+    stages.forEach(function(s){ s.classList.toggle("on", s.getAttribute("data-stage")===name); });
+  }
+  function show(which){
+    Object.keys(panels).forEach(function(k){
+      var on = k===which;
+      panels[k].hidden = !on;
+      if(on){ panels[k].classList.remove("fade-in"); void panels[k].offsetWidth; panels[k].classList.add("fade-in"); }
+    });
+    setChain(which);
+  }
+
+  var curGrid=null, curGenre=null, analyzeRAF=null;
+
+  function startAnalyze(label){
+    stopIdle();
+    curGenre = GENRES[(Math.random()*GENRES.length)|0];
+    curGrid = genGrid(curGenre);
+    document.getElementById("an-src").textContent = "— "+label;
+    show("analyze");
+    var cv=document.getElementById("spectro-live");
+    var nums=document.getElementById("an-nums"), bar=document.getElementById("an-bar");
+    var dur = reduce?200:2100, start=null;
+    function step(ts){
+      if(start==null) start=ts;
+      var prog=Math.min(1,(ts-start)/dur);
+      var col=Math.round(prog*W);
+      drawSpectro(cv, curGrid, col);
+      nums.textContent = "frame "+String(col).padStart(3,"0")+" / 130 · 128 bands · 22.05 kHz";
+      bar.style.width=(prog*100)+"%";
+      if(prog<1){ analyzeRAF=requestAnimationFrame(step); }
+      else { drawSpectro(cv,curGrid,null); setTimeout(showResult, reduce?0:360); }
+    }
+    analyzeRAF=requestAnimationFrame(step);
+  }
+
+  function genConfidence(winner){
+    var nb=CONF[winner], w=0.60+Math.random()*0.30, rem=1-w;
+    var s={}; GENRES.forEach(function(g){ s[g]=0; }); s[winner]=w;
+    var wt=[0.52,0.27,0.13], used=0;
+    nb.forEach(function(n,i){ if(i<3){ var x=rem*wt[i]*(0.8+Math.random()*0.4); s[n]+=x; used+=x; } });
+    var left=Math.max(0,rem-used);
+    var rest=GENRES.filter(function(g){ return g!==winner && nb.indexOf(g)<0; });
+    rest.forEach(function(g){ s[g]+= left*(0.3+Math.random())/rest.length; });
+    var tot=0; GENRES.forEach(function(g){ tot+=s[g]; });
+    GENRES.forEach(function(g){ s[g]=s[g]/tot; });
+    return s;
+  }
+
+  function showResult(){
+    var scores=genConfidence(curGenre);
+    var arr=GENRES.map(function(g){ return {g:g, v:scores[g]}; }).sort(function(a,b){ return b.v-a.v; });
+    var top=arr[0];
+    document.getElementById("genre-name").textContent = DISPLAY[top.g];
+    document.getElementById("genre-pct").textContent = (top.v*100).toFixed(1)+"%";
+    var box=document.getElementById("bars"); box.innerHTML="";
+    arr.forEach(function(item,idx){
+      var row=document.createElement("div");
+      row.className="row"+(idx===0?" win":"");
+      row.setAttribute("tabindex","0");
+      row.innerHTML='<span class="name">'+DISPLAY[item.g]+'</span>'+
+                    '<span class="track"><i></i></span>'+
+                    '<span class="val">'+(item.v*100).toFixed(1)+'</span>';
+      box.appendChild(row);
+      var fill=row.querySelector("i");
+      var pct=(item.v*100);
+      window.setTimeout(function(){ fill.style.width=Math.max(2,pct)+"%"; }, reduce?0:120+idx*70);
+    });
+    show("result");
+    drawSpectro(document.getElementById("spectro-final"), curGrid, null);
+  }
+
+  /* ---------- playback mock ---------- */
+  var playRAF=null, playing=false;
+  function togglePlay(){
+    var head=document.getElementById("playhead"), ico=document.getElementById("play-ico"), lbl=document.getElementById("btn-play");
+    if(playing){ playing=false; if(playRAF)cancelAnimationFrame(playRAF); head.style.opacity=0; ico.textContent="▶"; lbl.childNodes[1].nodeValue=" play clip"; return; }
+    playing=true; ico.textContent="❚❚"; lbl.childNodes[1].nodeValue=" playing…"; head.style.opacity=1;
+    var start=null, dur=3000;
+    function step(ts){ if(start==null)start=ts; var p=(ts-start)/dur; if(p>=1){ playing=false; head.style.opacity=0; ico.textContent="▶"; lbl.childNodes[1].nodeValue=" play clip"; return; }
+      head.style.left=(p*100)+"%"; playRAF=requestAnimationFrame(step); }
+    playRAF=requestAnimationFrame(step);
+  }
+
+  /* ---------- record flow ---------- */
+  function doRecord(){
+    var ov=document.getElementById("rec-overlay"), cnt=document.getElementById("rec-count");
+    ov.hidden=false; recViz(); var n=3; cnt.textContent=n;
+    if(reduce){ ov.hidden=true; stopRec(); startAnalyze("mic-clip.wav"); return; }
+    var iv=setInterval(function(){ n--; if(n<=0){ clearInterval(iv); ov.hidden=true; stopRec(); startAnalyze("mic-clip.wav"); } else { cnt.textContent=n; } },1000);
+  }
+
+  /* ---------- wire up ---------- */
+  function reset(){
+    show("input"); idleViz();
+    document.getElementById("dropzone").classList.remove("drag");
+  }
+  document.getElementById("btn-upload").addEventListener("click", function(){ document.getElementById("file-input").click(); });
+  document.getElementById("file-input").addEventListener("change", function(e){
+    var f=e.target.files && e.target.files[0]; startAnalyze(f?f.name:"input.wav"); e.target.value="";
+  });
+  document.getElementById("btn-record").addEventListener("click", doRecord);
+  document.getElementById("btn-reset").addEventListener("click", reset);
+  document.getElementById("btn-play").addEventListener("click", togglePlay);
+
+  var dz=document.getElementById("dropzone");
+  ["dragenter","dragover"].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); dz.classList.add("drag"); }); });
+  ["dragleave","drop"].forEach(function(ev){ dz.addEventListener(ev,function(e){ e.preventDefault(); if(ev==="dragleave" && dz.contains(e.relatedTarget))return; dz.classList.remove("drag"); }); });
+  dz.addEventListener("drop", function(e){
+    var f=e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    startAnalyze(f?f.name:"dropped.wav");
+  });
+
+  window.addEventListener("resize", function(){
+    if(!panels.result.hidden && curGrid) drawSpectro(document.getElementById("spectro-final"), curGrid, null);
+  });
+
+  // boot
+  idleViz();
+  setChain("input");
+})();
+</script>
