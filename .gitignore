@@ -68,6 +68,11 @@ datasets/
 *.ogg
 *.npy
 *.npz
+# ...but keep the bundled demo sample clips the web app ships with
+!web/public/samples/*.wav
+
+# Scratch dir used to build the sample clips (huge GTZAN tarball, etc.)
+_samples_build/
 
 # OS / editor
 .DS_Store

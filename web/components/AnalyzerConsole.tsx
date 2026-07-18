@@ -5,8 +5,10 @@ import { classify } from "@/lib/api";
 import { useRecorder } from "@/hooks/useRecorder";
 import { SignalChain } from "@/components/SignalChain";
 import { Dropzone } from "@/components/Dropzone";
+import { SamplePicker } from "@/components/SamplePicker";
 import { AnalyzingView } from "@/components/AnalyzingView";
 import { PredictionView } from "@/components/PredictionView";
+import { SAMPLES, type Sample } from "@/lib/samples";
 import styles from "./AnalyzerConsole.module.css";
 
 const STAGE_BY_STATUS: Record<State["status"], "input" | "analyze" | "result"> = {
@@ -22,6 +24,20 @@ export function AnalyzerConsole() {
   function handleFile(f: File | Blob, source: string) {
     dispatch({ type: "START", source });
     classify(f, source)
+      .then((result) => dispatch({ type: "SUCCESS", result }))
+      .catch((e: unknown) =>
+        dispatch({ type: "FAIL", message: e instanceof Error ? e.message : "Something went wrong." })
+      );
+  }
+
+  function handleSample(s: Sample) {
+    dispatch({ type: "START", source: s.filename });
+    fetch(s.url)
+      .then((r) => {
+        if (!r.ok) throw new Error("Couldn't load that sample clip.");
+        return r.blob();
+      })
+      .then((blob) => classify(blob, s.filename))
       .then((result) => dispatch({ type: "SUCCESS", result }))
       .catch((e: unknown) =>
         dispatch({ type: "FAIL", message: e instanceof Error ? e.message : "Something went wrong." })
@@ -70,6 +86,7 @@ export function AnalyzerConsole() {
                   <div className={styles.recCount}>{recorder.countdown}</div>
                 </div>
               )}
+              <SamplePicker samples={SAMPLES} onPick={handleSample} disabled={recorder.recording} />
             </div>
           )}
 
