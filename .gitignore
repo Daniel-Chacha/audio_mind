@@ -27,6 +27,9 @@ ipython_config.py
 .env
 .env.*
 *.local
+# ...but keep committed example env files
+!.env.example
+!**/.env.example
 
 # Testing / coverage
 .pytest_cache/

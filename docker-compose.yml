@@ -1,0 +1,19 @@
+# Local prod-parity for the AudioMind serving API — runs the container exactly
+# as it will run on a container host. The web frontend is NOT containerized
+# (it deploys to Vercel); run it separately with `cd web && npm run dev`.
+#
+#   docker compose up --build        # API on http://localhost:8000
+#   cd web && npm run dev            # web on http://localhost:3000 (talks to the API)
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Allow the local Next.js dev server; in prod set this to the Vercel URL.
+      ALLOWED_ORIGINS: "http://localhost:3000"
+      MAX_UPLOAD_MB: "15"
+      PORT: "8000"
+    restart: unless-stopped

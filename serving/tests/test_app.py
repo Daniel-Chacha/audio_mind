@@ -2,7 +2,7 @@ import io
 import numpy as np
 import soundfile as sf
 from fastapi.testclient import TestClient
-from serving.app import app
+from serving.app import app, MAX_UPLOAD_BYTES
 from serving.constants import SR, GENRES
 
 client = TestClient(app)
@@ -44,3 +44,9 @@ def test_classify_no_file_is_400():
     r = client.post("/classify", files={"file": ("empty.wav", b"", "audio/wav")})
     assert r.status_code == 400
     assert r.json()["error"] == "no_file"
+
+def test_classify_too_large_is_413():
+    oversized = b"\0" * (MAX_UPLOAD_BYTES + 1)
+    r = client.post("/classify", files={"file": ("big.wav", oversized, "audio/wav")})
+    assert r.status_code == 413
+    assert r.json()["error"] == "file_too_large"
