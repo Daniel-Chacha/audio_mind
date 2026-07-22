@@ -1,11 +1,13 @@
 import io
 import os
+from contextlib import asynccontextmanager
+import numpy as np
 import librosa
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from serving.constants import MODEL_PATH, STATS_PATH, SR, GENRES
+from serving.constants import MODEL_PATH, STATS_PATH, SR, GENRES, SAMPLES_PER_SEGMENT
 from serving.inference import Classifier, load_norm_stats
 from serving.preprocess import ClipTooShortError
 
@@ -23,16 +25,27 @@ ALLOWED_ORIGINS = [
 MAX_UPLOAD_MB = float(os.environ.get("MAX_UPLOAD_MB", "15"))
 MAX_UPLOAD_BYTES = int(MAX_UPLOAD_MB * 1024 * 1024)
 
-app = FastAPI(title="AudioMind serving")
+_mean, _std = load_norm_stats(STATS_PATH)
+clf = Classifier(MODEL_PATH, mean=_mean, std=_std)
+
+@asynccontextmanager
+async def lifespan(_app):
+    # Warm up the model with one dummy inference so its one-time graph compile
+    # happens at startup, not on the first user request. Matters most on
+    # cold-started free hosts (e.g. a sleeping HF Space). Best-effort.
+    try:
+        clf.predict((np.random.default_rng(0).standard_normal(SAMPLES_PER_SEGMENT) * 0.1).astype(np.float32))
+    except Exception:
+        pass
+    yield
+
+app = FastAPI(title="AudioMind serving", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-
-_mean, _std = load_norm_stats(STATS_PATH)
-clf = Classifier(MODEL_PATH, mean=_mean, std=_std)
 
 def _err(status, code, message):
     return JSONResponse(status_code=status, content={"error": code, "message": message})

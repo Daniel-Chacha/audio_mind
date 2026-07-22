@@ -29,15 +29,21 @@ class Classifier:
     def segments(self, y: np.ndarray) -> np.ndarray:
         return waveform_to_segments(y)                 # (n_seg,128,130,1) unnormalized
 
+    def _mean_probs(self, X: np.ndarray) -> np.ndarray:
+        # Call the model eagerly — model(X) — rather than model.predict(X). For the
+        # small per-clip batch this is faster and, crucially, avoids predict()'s
+        # one-time graph/XLA compile (a ~90s cold-start spike on the first request).
+        # The output (softmax) is identical.
+        return self.model(X, training=False).numpy().mean(axis=0)   # avg over segments
+
     def predict(self, y: np.ndarray) -> np.ndarray:
         X = normalize(self.segments(y), self.mean, self.std)
-        probs = self.model.predict(X, verbose=0).mean(axis=0)   # avg over segments
-        return probs.astype(np.float64)
+        return self._mean_probs(X).astype(np.float64)
 
     def classify(self, y: np.ndarray) -> dict:
         segs = self.segments(y)
         X = normalize(segs, self.mean, self.std)
-        probs = self.model.predict(X, verbose=0).mean(axis=0).astype(float)
+        probs = self._mean_probs(X).astype(float)
         top = int(probs.argmax())
         return {
             "genre": GENRES[top],

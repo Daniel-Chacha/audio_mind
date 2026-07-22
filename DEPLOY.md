@@ -5,6 +5,11 @@ Two independently-deployed pieces:
 - **web/** → **Vercel** (Next.js frontend; free HTTPS, which the mic recorder needs).
 - **serving/** → a **container host** (Render / Fly.io / Railway / a VM) running the `Dockerfile` at the repo root. TensorFlow + the model live in memory, so this needs a long-running host — not classic serverless.
 
+> **Want a free API host?** Render's free tier (512 MB RAM) is too small for
+> TensorFlow. Use a **free Hugging Face Space** (16 GB RAM) instead — see
+> [`deploy/hf-space/DEPLOY-HF.md`](deploy/hf-space/DEPLOY-HF.md). The rest of this
+> file (CORS, `NEXT_PUBLIC_API_BASE`, deploy order) applies the same way.
+
 They talk over HTTP and must agree on two things:
 
 | Setting | Where | Value |
