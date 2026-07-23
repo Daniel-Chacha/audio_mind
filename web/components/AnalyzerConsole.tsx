@@ -1,7 +1,7 @@
 "use client";
-import { useReducer } from "react";
+import { useEffect, useReducer } from "react";
 import { reducer, type State } from "@/lib/machine";
-import { classify } from "@/lib/api";
+import { classify, warmUp } from "@/lib/classifier";
 import { useRecorder } from "@/hooks/useRecorder";
 import { SignalChain } from "@/components/SignalChain";
 import { Dropzone } from "@/components/Dropzone";
@@ -21,9 +21,15 @@ const STAGE_BY_STATUS: Record<State["status"], "input" | "analyze" | "result"> =
 export function AnalyzerConsole() {
   const [state, dispatch] = useReducer(reducer, { status: "idle" });
 
+  // Fetch the model + DSP assets while the user is still looking at the
+  // dropzone, so the first classification doesn't pay the download.
+  useEffect(() => {
+    void warmUp().catch(() => {});
+  }, []);
+
   function handleFile(f: File | Blob, source: string) {
     dispatch({ type: "START", source });
-    classify(f, source)
+    classify(f)
       .then((result) => dispatch({ type: "SUCCESS", result }))
       .catch((e: unknown) =>
         dispatch({ type: "FAIL", message: e instanceof Error ? e.message : "Something went wrong." })
@@ -37,7 +43,7 @@ export function AnalyzerConsole() {
         if (!r.ok) throw new Error("Couldn't load that sample clip.");
         return r.blob();
       })
-      .then((blob) => classify(blob, s.filename))
+      .then((blob) => classify(blob))
       .then((result) => dispatch({ type: "SUCCESS", result }))
       .catch((e: unknown) =>
         dispatch({ type: "FAIL", message: e instanceof Error ? e.message : "Something went wrong." })

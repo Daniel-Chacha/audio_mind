@@ -1,0 +1,33 @@
+{
+  "sr": 22050,
+  "n_fft": 2048,
+  "hop_length": 512,
+  "n_mels": 128,
+  "frames": 130,
+  "samples_per_segment": 66150,
+  "mel_filters_shape": [
+    128,
+    1025
+  ],
+  "window_length": 2048,
+  "center": true,
+  "pad_mode": "constant",
+  "power": 2.0,
+  "top_db": 80.0,
+  "amin": 1e-10,
+  "norm_mean": -40.51021194458008,
+  "norm_std": 15.245159149169922,
+  "genres": [
+    "blues",
+    "classical",
+    "country",
+    "disco",
+    "hiphop",
+    "jazz",
+    "metal",
+    "pop",
+    "reggae",
+    "rock"
+  ],
+  "librosa_version": "0.10.2.post1"
+}
