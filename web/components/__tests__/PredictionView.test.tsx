@@ -48,3 +48,36 @@ describe("PredictionView", () => {
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("clip playback", () => {
+  const play = vi.fn<() => Promise<void>>(() => Promise.resolve());
+  const pause = vi.fn<() => void>(() => {});
+
+  beforeEach(() => {
+    play.mockClear();
+    pause.mockClear();
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(play);
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(pause);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("offers no player when there is no clip", () => {
+    render(<PredictionView result={FIXTURE} onReset={() => {}} />);
+    expect(screen.queryByRole("button", { name: /play the clip/i })).toBeNull();
+  });
+
+  it("plays the clip and flips to pause", async () => {
+    render(<PredictionView result={FIXTURE} clipUrl="blob:clip" onReset={() => {}} />);
+    const btn = screen.getByRole("button", { name: /play the clip/i });
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(btn);
+    expect(play).toHaveBeenCalled();
+
+    const pauseBtn = await screen.findByRole("button", { name: /pause the clip/i });
+    expect(pauseBtn).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(pauseBtn);
+    expect(pause).toHaveBeenCalled();
+  });
+});

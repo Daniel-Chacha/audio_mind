@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { reducer, type State } from "@/lib/machine";
 import { classify, warmUp, type ClassifyPhase } from "@/lib/classifier";
 import { useRecorder } from "@/hooks/useRecorder";
@@ -23,6 +23,24 @@ export function AnalyzerConsole() {
   // Which real pipeline stage is running, so the analyzing view can say so
   // instead of looking frozen while the model downloads or runs.
   const [phase, setPhase] = useState<ClassifyPhase>("loading");
+  // Keep the classified clip around so the result view can play it back.
+  // Object URLs must be revoked or they leak for the life of the document.
+  const clipUrlRef = useRef<string | null>(null);
+  const [clipUrl, setClipUrl] = useState<string | null>(null);
+
+  const setClip = useCallback((blob: Blob | null) => {
+    if (clipUrlRef.current) URL.revokeObjectURL(clipUrlRef.current);
+    const url = blob ? URL.createObjectURL(blob) : null;
+    clipUrlRef.current = url;
+    setClipUrl(url);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (clipUrlRef.current) URL.revokeObjectURL(clipUrlRef.current);
+    },
+    [],
+  );
 
   // Fetch the model + DSP assets while the user is still looking at the
   // dropzone, so the first classification doesn't pay the download.
@@ -32,6 +50,7 @@ export function AnalyzerConsole() {
 
   function handleFile(f: File | Blob, source: string) {
     setPhase("loading");
+    setClip(f);
     dispatch({ type: "START", source });
     classify(f, { onPhase: setPhase })
       .then((result) => dispatch({ type: "SUCCESS", result }))
@@ -48,7 +67,10 @@ export function AnalyzerConsole() {
         if (!r.ok) throw new Error("Couldn't load that sample clip.");
         return r.blob();
       })
-      .then((blob) => classify(blob, { onPhase: setPhase }))
+      .then((blob) => {
+        setClip(blob);
+        return classify(blob, { onPhase: setPhase });
+      })
       .then((result) => dispatch({ type: "SUCCESS", result }))
       .catch((e: unknown) =>
         dispatch({ type: "FAIL", message: e instanceof Error ? e.message : "Something went wrong." })
@@ -104,7 +126,14 @@ export function AnalyzerConsole() {
           {state.status === "analyzing" && <AnalyzingView sourceLabel={state.source} phase={phase} />}
 
           {state.status === "result" && (
-            <PredictionView result={state.result} onReset={() => dispatch({ type: "RESET" })} />
+            <PredictionView
+              result={state.result}
+              clipUrl={clipUrl}
+              onReset={() => {
+                setClip(null);
+                dispatch({ type: "RESET" });
+              }}
+            />
           )}
 
           {state.status === "error" && (

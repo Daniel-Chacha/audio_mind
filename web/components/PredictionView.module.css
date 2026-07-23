@@ -88,3 +88,57 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Clip playback under the spectrogram (ported from the prototype's
+   .see-controls / .play / .playhead). */
+.seeControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.play {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 13px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  transition: border-color 0.2s, background 0.2s;
+}
+.play:hover {
+  border-color: var(--yellow);
+  background: rgba(252, 211, 77, 0.06);
+}
+.play:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+/* Same signal gradient as the other play controls. */
+.playIcon {
+  font-size: 10px;
+  line-height: 1;
+  background: var(--signal);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Sweeps across the spectrogram in time with the audio. */
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(252, 211, 77, 0.9);
+  box-shadow: 0 0 10px var(--yellow);
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
