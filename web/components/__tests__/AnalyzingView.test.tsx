@@ -28,6 +28,20 @@ describe("AnalyzingView", () => {
     expect(rafSpy).not.toHaveBeenCalled();
   });
 
+  it("shows the real pipeline stage it was given", () => {
+    render(<AnalyzingView sourceLabel="song.wav" phase="inferring" />);
+    expect(screen.getByText("running")).toBeInTheDocument();
+    expect(screen.getByText("the cnn")).toBeInTheDocument();
+  });
+
+  it("labels the meter as a progressbar for assistive tech", () => {
+    render(<AnalyzingView sourceLabel="song.wav" phase="decoding" />);
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-label",
+      "decoding audio",
+    );
+  });
+
   it("cleans up the rAF loop on unmount", () => {
     const cafSpy = vi.spyOn(window, "cancelAnimationFrame");
     const { unmount } = render(<AnalyzingView sourceLabel="song.wav" />);

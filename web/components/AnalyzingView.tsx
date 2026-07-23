@@ -1,11 +1,13 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { magma } from "@/lib/magma";
+import type { ClassifyPhase } from "@/lib/classifier";
 import styles from "./AnalyzingView.module.css";
 
 const W = 130; // frames (time)
 const H = 128; // mel bands
 const SWEEP_MS = 2100;
+const SCAN_MS = 1800; // one pass of the post-build scan line
 
 // AnalyzingView never knows the eventual genre (the API call is still in
 // flight), so the build uses one neutral, pleasant-looking spectral profile
@@ -104,6 +106,37 @@ function drawSpectro(cv: HTMLCanvasElement, grid: Float32Array, upto: number | n
   }
 }
 
+/** Copy the finished spectrogram so the scan loop can blit instead of redrawing. */
+function snapshot(cv: HTMLCanvasElement): HTMLCanvasElement | null {
+  const off = document.createElement("canvas");
+  off.width = cv.width;
+  off.height = cv.height;
+  const ctx = off.getContext("2d");
+  if (!ctx) return null; // jsdom
+  ctx.drawImage(cv, 0, 0);
+  return off;
+}
+
+/**
+ * A scan line sweeping the finished spectrogram, drawn while the model is
+ * still downloading or running. Without it the view freezes on a full progress
+ * bar and reads as hung.
+ */
+function drawScan(cv: HTMLCanvasElement, off: HTMLCanvasElement, t: number) {
+  const ctx = cv.getContext("2d");
+  if (!ctx) return;
+  ctx.drawImage(off, 0, 0);
+  const x = t * cv.width;
+  const trail = Math.max(40, cv.width * 0.09);
+  const grad = ctx.createLinearGradient(x - trail, 0, x, 0);
+  grad.addColorStop(0, "rgba(252,211,77,0)");
+  grad.addColorStop(1, "rgba(252,211,77,0.18)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(x - trail, 0, trail, cv.height);
+  ctx.fillStyle = "rgba(252,211,77,0.8)";
+  ctx.fillRect(x, 0, 2, cv.height);
+}
+
 function prefersReducedMotion(): boolean {
   return (
     typeof window !== "undefined" &&
@@ -112,9 +145,25 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-export function AnalyzingView({ sourceLabel }: { sourceLabel: string }) {
+// What the pipeline is actually doing, so the status is truthful rather than
+// a decorative "loading". Verb + subject keeps the head's emphasis styling.
+const PHASE_TEXT: Record<ClassifyPhase, [string, string]> = {
+  loading: ["loading", "the model"],
+  decoding: ["decoding", "audio"],
+  spectrogram: ["extracting", "mel spectrogram"],
+  inferring: ["running", "the cnn"],
+};
+
+export function AnalyzingView({
+  sourceLabel,
+  phase = "spectrogram",
+}: {
+  sourceLabel: string;
+  phase?: ClassifyPhase;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
+  const reduced = useMemo(() => prefersReducedMotion(), []);
   // Lazy init (not a setState-in-effect) so the reduced-motion case renders
   // its final readout on the very first paint, with no animation frame.
   const [frame, setFrame] = useState(() => (prefersReducedMotion() ? W : 0));
@@ -123,37 +172,62 @@ export function AnalyzingView({ sourceLabel }: { sourceLabel: string }) {
     const grid = genGrid();
     const cv = canvasRef.current;
 
-    if (prefersReducedMotion()) {
+    if (reduced) {
       if (cv) drawSpectro(cv, grid, null);
       return;
     }
 
     let start: number | null = null;
+    let off: HTMLCanvasElement | null = null;
+    let captured = false;
+
     const step = (ts: number) => {
       if (start == null) start = ts;
-      const prog = Math.min(1, (ts - start) / SWEEP_MS);
-      const col = Math.round(prog * W);
-      if (cv) drawSpectro(cv, grid, col < W ? col : null);
-      setFrame(col);
-      if (prog < 1) {
-        rafRef.current = requestAnimationFrame(step);
+      const elapsed = ts - start;
+
+      if (elapsed < SWEEP_MS) {
+        const col = Math.round((elapsed / SWEEP_MS) * W);
+        if (cv) drawSpectro(cv, grid, col);
+        setFrame(col);
+      } else {
+        if (!captured) {
+          if (cv) {
+            drawSpectro(cv, grid, null);
+            off = snapshot(cv);
+          }
+          setFrame(W);
+          captured = true;
+        }
+        // The build is done but the model may still be downloading or running,
+        // so keep sweeping — a static full bar reads as a hang.
+        if (cv && off) drawScan(cv, off, ((elapsed - SWEEP_MS) % SCAN_MS) / SCAN_MS);
       }
+      rafRef.current = requestAnimationFrame(step);
     };
     rafRef.current = requestAnimationFrame(step);
 
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [reduced]);
 
   const pct = Math.min(100, (frame / W) * 100);
   const frameLabel = String(Math.min(frame, W)).padStart(3, "0");
+  const [verb, subject] = PHASE_TEXT[phase];
+  // Once the illustrative build finishes, real progress is unknowable — so show
+  // an indeterminate meter rather than a full bar that implies "done".
+  const indeterminate = !reduced && frame >= W;
 
   return (
     <div className={styles.analyzer}>
       <div className={styles.anHead}>
         <span>
-          extracting <b>mel spectrogram</b>
+          {verb} <b>{subject}</b>
+          <span className={styles.dots} aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
         </span>
         <span>— {sourceLabel}</span>
       </div>
@@ -164,8 +238,13 @@ export function AnalyzingView({ sourceLabel }: { sourceLabel: string }) {
         <span className={styles.anNums}>
           frame {frameLabel} / 130 · 128 bands · 22.05 kHz
         </span>
-        <span className={styles.meter}>
-          <i style={{ width: `${pct}%` }} />
+        <span
+          className={`${styles.meter} ${indeterminate ? styles.meterIndeterminate : ""}`}
+          role="progressbar"
+          aria-label={`${verb} ${subject}`}
+          {...(indeterminate ? {} : { "aria-valuenow": Math.round(pct), "aria-valuemin": 0, "aria-valuemax": 100 })}
+        >
+          <i style={indeterminate ? undefined : { width: `${pct}%` }} />
         </span>
       </div>
     </div>

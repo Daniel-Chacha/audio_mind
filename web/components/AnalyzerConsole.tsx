@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { reducer, type State } from "@/lib/machine";
-import { classify, warmUp } from "@/lib/classifier";
+import { classify, warmUp, type ClassifyPhase } from "@/lib/classifier";
 import { useRecorder } from "@/hooks/useRecorder";
 import { SignalChain } from "@/components/SignalChain";
 import { Dropzone } from "@/components/Dropzone";
@@ -20,6 +20,9 @@ const STAGE_BY_STATUS: Record<State["status"], "input" | "analyze" | "result"> =
 
 export function AnalyzerConsole() {
   const [state, dispatch] = useReducer(reducer, { status: "idle" });
+  // Which real pipeline stage is running, so the analyzing view can say so
+  // instead of looking frozen while the model downloads or runs.
+  const [phase, setPhase] = useState<ClassifyPhase>("loading");
 
   // Fetch the model + DSP assets while the user is still looking at the
   // dropzone, so the first classification doesn't pay the download.
@@ -28,8 +31,9 @@ export function AnalyzerConsole() {
   }, []);
 
   function handleFile(f: File | Blob, source: string) {
+    setPhase("loading");
     dispatch({ type: "START", source });
-    classify(f)
+    classify(f, { onPhase: setPhase })
       .then((result) => dispatch({ type: "SUCCESS", result }))
       .catch((e: unknown) =>
         dispatch({ type: "FAIL", message: e instanceof Error ? e.message : "Something went wrong." })
@@ -37,13 +41,14 @@ export function AnalyzerConsole() {
   }
 
   function handleSample(s: Sample) {
+    setPhase("loading");
     dispatch({ type: "START", source: s.filename });
     fetch(s.url)
       .then((r) => {
         if (!r.ok) throw new Error("Couldn't load that sample clip.");
         return r.blob();
       })
-      .then((blob) => classify(blob))
+      .then((blob) => classify(blob, { onPhase: setPhase }))
       .then((result) => dispatch({ type: "SUCCESS", result }))
       .catch((e: unknown) =>
         dispatch({ type: "FAIL", message: e instanceof Error ? e.message : "Something went wrong." })
@@ -96,7 +101,7 @@ export function AnalyzerConsole() {
             </div>
           )}
 
-          {state.status === "analyzing" && <AnalyzingView sourceLabel={state.source} />}
+          {state.status === "analyzing" && <AnalyzingView sourceLabel={state.source} phase={phase} />}
 
           {state.status === "result" && (
             <PredictionView result={state.result} onReset={() => dispatch({ type: "RESET" })} />

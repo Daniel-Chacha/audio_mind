@@ -46,9 +46,14 @@ export async function warmUp(): Promise<void> {
   await Promise.all([loadModel(), loadDspAssets()]);
 }
 
+/** Stages a caller can surface while a clip is being classified. */
+export type ClassifyPhase = "loading" | "decoding" | "spectrogram" | "inferring";
+
 export interface ClassifyDeps {
   model?: tf.GraphModel;
   assets?: DspAssets;
+  /** Reports the real stage in progress, for UI that shouldn't look frozen. */
+  onPhase?: (phase: ClassifyPhase) => void;
 }
 
 /**
@@ -67,11 +72,14 @@ export async function classifySamples(
     throw new ClassifyError("clip_too_short", "Clips need to be at least 3 seconds.");
   }
 
+  if (!deps.model) deps.onPhase?.("loading");
   const model = deps.model ?? (await loadModel());
 
   // Unnormalized log-mel per segment: needed both as model input (after
   // normalizing) and to pick the loudest segment for the display spectrogram.
+  deps.onPhase?.("spectrogram");
   const melDbs = segments.map((seg) => melSpectrogramDb(seg, assets));
+  deps.onPhase?.("inferring");
 
   try {
     const probs = tf.tidy(() => {
@@ -112,13 +120,16 @@ export async function classifySamples(
 }
 
 /** Classify an audio file (or recorded blob) entirely in the browser. */
-export async function classify(input: Blob): Promise<ClassifyResponse> {
-  const assets = await loadDspAssets();
+export async function classify(input: Blob, deps: ClassifyDeps = {}): Promise<ClassifyResponse> {
+  deps.onPhase?.("loading");
+  const assets = deps.assets ?? (await loadDspAssets());
+
+  deps.onPhase?.("decoding");
   let samples: Float32Array;
   try {
     samples = await decodeToMono(input, assets.meta.sr);
   } catch {
     throw new ClassifyError("unreadable_audio", "Couldn't read that file — try a WAV or MP3.");
   }
-  return classifySamples(samples, { assets });
+  return classifySamples(samples, { ...deps, assets });
 }
