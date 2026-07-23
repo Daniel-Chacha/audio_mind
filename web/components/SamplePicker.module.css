@@ -52,14 +52,20 @@
   display: inline-flex;
   align-items: center;
   padding: 7px 8px 7px 12px;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
+  /* Same signal gradient as the "Upload audio" button, clipped to the glyph. */
+  background: var(--signal);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: filter 0.2s;
 }
 .play:hover:not(:disabled) {
-  color: var(--yellow);
+  filter: brightness(1.2) drop-shadow(0 0 6px rgba(232, 54, 143, 0.5));
 }
 .playActive {
-  color: var(--yellow);
+  filter: drop-shadow(0 0 7px rgba(252, 211, 77, 0.6));
 }
 
 .name {
