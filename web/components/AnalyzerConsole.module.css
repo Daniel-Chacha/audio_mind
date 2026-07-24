@@ -246,3 +246,25 @@
     padding-left: 0;
   }
 }
+
+/* Link to the about page, sitting in the top rail. */
+.about {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 11px;
+  transition: border-color 0.2s, color 0.2s;
+}
+.about:hover {
+  border-color: var(--magenta);
+  color: var(--text);
+}
+.about:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}

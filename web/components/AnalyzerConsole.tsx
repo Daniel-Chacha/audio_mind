@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import Link from "next/link";
 import { reducer, type State } from "@/lib/machine";
 import { classify, warmUp, type ClassifyPhase } from "@/lib/classifier";
 import { useRecorder } from "@/hooks/useRecorder";
@@ -97,6 +98,9 @@ export function AnalyzerConsole() {
           <span className={styles.status}>
             <i className={styles.led} aria-hidden="true" /> model ready
           </span>
+          <Link href="/about" className={styles.about}>
+            about
+          </Link>
         </div>
       </header>
 
